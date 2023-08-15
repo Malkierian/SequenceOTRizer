@@ -122,6 +122,7 @@ int main(int argc, char* argv[]) {
             for (auto file : std::filesystem::directory_iterator(folder)) {
                 if (file.path().extension() == ".zbank") {
                     std::cerr << file.path().generic_string() << " is an unsupported soundbank mod! Skipping." << std::endl;
+                    valid = false;
                     break;
                 }
                 if (file.path().extension() == ".seq" && std::filesystem::exists(file.path().parent_path() / file.path().stem() += ".meta")) {
