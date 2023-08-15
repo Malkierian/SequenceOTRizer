@@ -111,6 +111,7 @@ int main(int argc, char* argv[]) {
         }
         // Iterate over all files in the custom sequences path.
         for (auto item : list) {
+            printf("Processing file: %s", item.path());
             // Proceed if the extension is .seq and a .meta file of the same name also exists.
             if (item.path().extension() == ".seq") {
                 if (!std::filesystem::exists(item.path().parent_path() / item.path().stem() += ".meta")) {
