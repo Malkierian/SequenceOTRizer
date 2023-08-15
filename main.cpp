@@ -120,7 +120,13 @@ int main(int argc, char* argv[]) {
                                 << " does not have a corresponding .meta file! Skipping." << std::endl;
                     continue;
                 }
-                printf("creating sequence");
+                printf("has meta");
+                if (std::filesystem::exists(item.path().parent_path() / item.path().stem() += ".zbank")) {
+                    std::cerr << item.path().generic_string()
+                                << " is an unsupported soundbank mod! Skipping." << std::endl;
+                    continue;
+                }
+                printf("not zbank, creating sequence");
                 ZeldaOTRizer::Sequence sequence = ZeldaOTRizer::Sequence::FromSeqFile(otrFile, item.path());
                 printf("otrizing sequence");
                 // Output the sequence resource to the OTR File.
