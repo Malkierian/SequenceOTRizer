@@ -114,12 +114,15 @@ int main(int argc, char* argv[]) {
             printf("Processing file: %s\n", item.path().c_str());
             // Proceed if the extension is .seq and a .meta file of the same name also exists.
             if (item.path().extension() == ".seq") {
+                printf(".seq detected");
                 if (!std::filesystem::exists(item.path().parent_path() / item.path().stem() += ".meta")) {
                     std::cerr << item.path().generic_string()
                                 << " does not have a corresponding .meta file! Skipping." << std::endl;
                     continue;
                 }
+                printf("creating sequence");
                 ZeldaOTRizer::Sequence sequence = ZeldaOTRizer::Sequence::FromSeqFile(otrFile, item.path());
+                printf("otrizing sequence");
                 // Output the sequence resource to the OTR File.
                 sequence.OTRize();
                 printf("musicArchive->AddFile(%s)\n", sequence.outPath.c_str());
