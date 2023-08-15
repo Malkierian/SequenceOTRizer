@@ -6,6 +6,60 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  build-macos:
+   runs-on: macos-12
+   steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+    - name: ccache
+      uses: hendrikmuhs/ccache-action@v1.2
+      with:
+        key: ${{ runner.os }}-ccache
+    - name: Install gtar wrapper
+      run: |
+        sudo mv /usr/local/bin/gtar /usr/local/bin/gtar.orig
+        sudo cp .github/workflows//gtar /usr/local/bin/gtar
+        sudo chmod +x /usr/local/bin/gtar
+    - name: Cache MacPorts
+      id: cache-macports
+      uses: actions/cache@v2
+      with:
+        path: /opt/local/
+        key: ${{ runner.os }}-macports-${{ hashFiles('.github/workflows/macports-deps.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-macports-
+    - name: Install MacPorts (if necessary)
+      run: |
+        if [ -d /opt/local/ ]; then
+          echo "MacPorts already installed"
+        else
+          wget https://github.com/macports/macports-base/releases/download/v2.7.2/MacPorts-2.7.2-12-Monterey.pkg
+          sudo installer -pkg ./MacPorts-2.7.2-12-Monterey.pkg -target /
+        fi
+        echo "/opt/local/bin:/opt/local/sbin" >> $GITHUB_PATH
+    - name: Install dependencies
+      run: |
+        brew uninstall --ignore-dependencies libpng
+        sudo port install libsdl2 +universal libpng +universal glew +universal
+        brew install ninja
+    - name: Build SequenceOTRizer
+      run: |
+        export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
+        cmake --no-warn-unused-cli -H. -Bbuild-cmake _GNinja -DCMAKE_BUILD_TYPE:STRING=Release -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" -DSTORM_SKIP_INSTALL=true
+        cmake --build build-cmake --config Release --parallel 10
+        cd build-cmake
+        cpack -C "Release" -G ZIP
+    - name: Upload build
+      uses: actions/upload-artifact@v3
+      with:
+        name: SequenceOTRizer-mac
+        path: build-cmake/SequenceOTRizer
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: build-cmake/SequenceOTRizer*.zip
   build-linux:
     runs-on: ubuntu-latest
     steps:
@@ -50,4 +104,38 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: build-cmake/SequenceOTRizer*.tar.gz
+  build-windows:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+    - name: Install dependencies
+      run: |
+        choco install ninja
+        Remove-Item -Path "C:\ProgramData\Chocolatey\bin\ccache.exe" -Force
+    - name: ccache
+      uses: dcvz/ccache-action@27b9f33213c0079872f064f6b6ba0233dfa16ba2
+      with:
+        key: ${{ runner.os }}-ccache
+    - uses: ilammy/msvc-dev-cmd@v1
+    - name: Build SequenceOTRizer
+      env:
+        VCPKG_ROOT: D:/a/vcpkg
+      run: |
+        set $env:PATH="$env:USERPROFILE/.cargo/bin;$env:PATH"
+        cmake -S . -B build-cmake -G Ninja -DCMAKE_MAKE_PROGRAM=ninja -DCMAKE_BUILD_TYPE:STRING=Release -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DUSE_AUTO_VCPKG=true -DCMAKE_VS_PLATFORM_NAME:STRING=x64 -DSTORM_SKIP_INSTALL=true
+        cmake --build build-cmake --config Release --parallel 10
+        cd build-cmake
+        cpack -C "Release" -G ZIP
+    - name: Upload build
+      uses: actions/upload-artifact@v3
+      with:
+        name: SequenceOTRizer-windows
+        path: build-cmake/SequenceOTRizer.exe
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: build-cmake/SequenceOTRizer*.zip
    
